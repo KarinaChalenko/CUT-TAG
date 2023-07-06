@@ -28,7 +28,13 @@ done
 rm *out *tab; rmdir *STARtmp
 for file in *Aligned*; do mv $file ${file/_Aligned.out/}; done
 
-# 
+# Count the aligned reads:
+for file in *.bam; do 
+  echo $file $(samtools flagstat $file | sed -n '1p' | \
+    awk '{print $1}'); 
+done
+
+# Sort BAM files, remove split alignments, MAPQ values below 10 and singletons:
 for file in *bam; do 
   echo $file && 
   samtools view -hu -q 10 $file | 
@@ -41,18 +47,17 @@ for file in *sorted.bam; do
     awk '{print $1}'); 
 done
 
-Swetha did then:
+# Sort names for fixmate
 samtools sort -n input.bam > output.bam
 
-# Run fixmate (required by markdup) then swetha run:
+# Run fixmate (required by markdup):
 for file in *sorted.bam; do echo $file && samtools fixmate -m $file ${file/.bam/_fixmate.bam}; done
 
-# Sort by coordinates I run:
+# Sort by coordinates:
 for file in *fixmate.bam; do echo $file && samtools sort $file -o ${file/.bam/_sorted.bam}; done
 
-# Deduplicate in PE mode:Swetha did then:
-for file in *fixmate_sorted.bam; do echo $file && samtools markdup -r $file ${file/.bam/_dedup.bam}; done
-ERROR [main] unrecognised command "markdup"
+# Deduplicate in SE mode:
+for file in *fixmate_sorted.bam; do echo $file && samtools markdup -s $file ${file/.bam/_dedup.bam}; done
 
 # Count the filtered reads:
 for file in *dedup.bam; do 
@@ -60,45 +65,16 @@ for file in *dedup.bam; do
     awk '{print $1}'); 
 done
 
-
-#Merge replicates BUT I WILL STILL HAVE PROBLEM WITH CHR NAMES
-samtools merge H3K4me1_Abcam_sorted_names_fixmate_sorted_dedup.bam H3K4me1-1ab_S1_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me1-2ab_S2_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me1-3ab_S3_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K4me1_F4_sorted_names_fixmate_sorted_dedup.bam H3K4me1-1-1F4_S14_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me1-2-1F4_S15_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me1-3-1F4_S16_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K4me1_Epi_sorted_names_fixmate_sorted_dedup.bam H3K4me1-2-40_S27_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me1-3-40_S28_R1_001_sorted_names_fixmate_sorted_dedup.bam
-
-samtools merge H3K4me3_Abcam_sorted_names_fixmate_sorted_dedup.bam H3K4me3-1ab_S4_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me3-2ab_S5_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K4me3_Epi_sorted_names_fixmate_sorted_dedup.bam H3K4me3-1-41_S31_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me3-2-41_S32_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K4me3-3-41_S33_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K27me3_Millipore_sorted_names_fixmate_sorted_dedup.bam H3K27me3-1M_S12_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K27me3-2M_S13_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K27me3_1G5_sorted_names_fixmate_sorted_dedup.bam H3K27me3-1-1G5_S24_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K27me3-2-1G5_S25_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K27me3_Thermo_sorted_names_fixmate_sorted_dedup.bam H3K27me3-1-MA5_S34_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K27me3-2-MA5_S35_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me1_Abcam_sorted_names_fixmate_sorted_dedup.bam H3K36me1-1ab_S6_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me1-2ab_S7_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me1_Boster_sorted_names_fixmate_sorted_dedup.bam H3K36me1-1-M12_S36_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me1-2-M12_S37_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me2_Abcam_sorted_names_fixmate_sorted_dedup.bam H3K36me2-1ab_S8_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me2-2ab_S9_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me2_1B4_sorted_names_fixmate_sorted_dedup.bam H3K36me2-1-1B4_S17_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me2-2-1B4_S18_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me2-3-1B4_S19_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me2_ActiveM_sorted_names_fixmate_sorted_dedup.bam H3K36me2-1-61_S38_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me2-2-61_S39_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me3_Abcam_sorted_names_fixmate_sorted_dedup.bam H3K36me3-1ab_S10_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me3-2ab_S11_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me3_1B9_sorted_names_fixmate_sorted_dedup.bam H3K36me3-1-1B9_S22_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me3-2-1B9_S23_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me3_1E2_sorted_names_fixmate_sorted_dedup.bam H3K36me3-1-1E2_S20_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me3-2-1E2_S21_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me3_Abclonal_sorted_names_fixmate_sorted_dedup.bam H3K36me3-1-A2_S40_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me3-2-A2_S41_R1_001_sorted_names_fixmate_sorted_dedup.bam
-samtools merge H3K36me1_Abcam_All_sorted_names_fixmate_sorted_dedup.bam H3K36me1-1ab_S6_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me1-2ab_S7_R1_001_sorted_names_fixmate_sorted_dedup.bam H3K36me1-ourTn5_S48_R1_001_sorted_names_fixmate_sorted_dedup.bam
-
-I put them in another folder called Merged
-
-INDEX for bamCoverage 
+# INDEX for bamCoverage 
 for i in *dedup.bam
 do
 	samtools index ${i}
 done
 
-# Count reads in merged files to check:
-for file in *dedup.bam; do 
-  echo $file $(samtools flagstat $file | sed -n '1p' | \
-    awk '{print $1}'); 
-done
-
 # Coverage and Normalization
 for file in *sorted_names_fixmate_sorted_dedup.bam; do echo $file && bamCoverage -b $file --binSize 10 --normalizeUsing BPM --effectiveGenomeSize 120000000 --extendReads 76 --outFileFormat bedgraph -o ${file/_dedup.bam/_cov.bg}; done
- 
+
+# gzip the files 
 gzip *cov.bg
 
 # Change chromosome names
