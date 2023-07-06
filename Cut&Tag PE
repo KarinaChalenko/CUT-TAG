@@ -1,0 +1,86 @@
+# The code to preproccess RAW Cut&Tag data sequenced in PE mode using 150 cycles flow-cell
+install conda:
+https://docs.conda.io/en/latest/miniconda.html#linux-installers
+$ bash Miniconda3-py38_4.10.3-Linux-x86_64.sh
+$ conda config --add channels defaults
+$ conda config --add channels conda-forge
+$ conda config --add channels bioconda
+# conda already includes bcl2fastq to manually demultiplex run
+bcl2fastq --runfolder-dir nameofsequencingfolder --processing-threads 30 --no-lane-splitting
+
+# Count raw reads:
+for file in *R1_001.fastq.gz; do 
+  echo $file $(( $(zcat $file | wc -l | 
+    awk '{print $1}') / 4 )); 
+done
+
+for f1 in *_R1_001.fastq.gz; do 
+  f2=${f1/_R1_001.f/_R2_001.f} && 
+  echo $f1 $f2 && 
+  STAR --genomeDir /binf-isilon/sandelin/people/karina/index --readFilesIn $f1 $f2 \
+    --runThreadN 16 --outFileNamePrefix ${f1/R1_001.fastq.gz/} \
+    --outSAMmultNmax 1 --alignEndsType Local \
+    --readFilesCommand zcat \
+    --clip3pAdapterSeq AGATCGGAAGAGC AGATCGGAAGAGC \
+    --clip3pAdapterMMp 0.1 0.1 \
+    --outSAMtype BAM Unsorted; 
+done
+
+rm *out *tab; rmdir *STARtmp
+for file in *Aligned*; do mv $file ${file/_Aligned.out/}; done
+
+# Count the aligned reads:
+for file in *.bam; do 
+  echo $file $(samtools flagstat $file | sed -n '1p' | \
+    awk '{print $1}'); 
+done
+
+# Sort BAM files, remove split alignments, MAPQ values below 10 and singletons:
+for file in *bam; do 
+  echo $file && 
+  samtools view -hu -q 10 -f 2 $file | 
+  samtools sort -n - | 
+  samtools sort - -o ${file/.bam/_sorted.bam}; 
+done
+
+# Count the filtered reads:
+for file in *sorted.bam; do 
+  echo $file $(samtools flagstat $file | sed -n '1p' | \
+    awk '{print $1}'); 
+done
+
+# Sort names for fixmate
+for file in *sorted.bam; do 
+  echo $file && 
+  samtools sort $file -n -o ${file/.bam/_names.bam}; 
+done
+
+# Run fixmate (required by markdup):
+for file in *sorted_names.bam; do echo $file && samtools fixmate -m $file ${file/.bam/_fixmate.bam}; done
+
+# Sort by coordinates:
+for file in *fixmate.bam; do echo $file && samtools sort $file -o ${file/.bam/_sorted.bam}; done
+
+# Deduplicate in PE mode:
+for file in *fixmate_sorted.bam; do echo $file && samtools markdup -r $file ${file/.bam/_dedup.bam}; done
+
+# Count the filtered reads:
+for file in *dedup.bam; do 
+  echo $file $(samtools flagstat $file | sed -n '1p' | \
+    awk '{print $1}'); 
+done
+
+INDEX for bamCoverage 
+for i in *dedup.bam
+do
+	samtools index ${i}
+done
+
+# Coverage and Normalization
+for file in *dedup.bam; do echo $file && bamCoverage -b $file --binSize 10 --normalizeUsing BPM --effectiveGenomeSize 120000000 --extendReads 76 --outFileFormat bedgraph -o ${file/_dedup.bam/_cov.bg}; done
+ 
+# gzip the files 
+gzip *cov.bg
+
+# Change chromosome names
+for file in *bg.gz; do echo $file && zcat $file | sed 's/^Chr//;s/^C/Pt/;s/^M/Mt/' > temp && mv temp $file; done
